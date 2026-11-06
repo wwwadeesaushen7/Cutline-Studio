@@ -5,6 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 from statistics import median
+from .editing import subtitle_groups
 
 RATIOS = {'portrait': (720,1280), 'square':(720,720), 'landscape':(1280,720)}
 QUALITIES = {'480p': {'scale': 2/3, 'crf': 26, 'audio': '96k'},
@@ -267,10 +268,11 @@ def resolve_framing(source, clip, settings, auto_layout=None):
 
 
 def ass_time(seconds):
-    seconds = max(0, seconds)
-    hours = int(seconds//3600)
-    minutes = int(seconds//60)%60
-    return f'{hours}:{minutes:02}:{seconds%60:05.2f}'
+    centiseconds = max(0, round(seconds * 100))
+    hours, remainder = divmod(centiseconds, 360000)
+    minutes, remainder = divmod(remainder, 6000)
+    whole, fraction = divmod(remainder, 100)
+    return f'{hours}:{minutes:02}:{whole:02}.{fraction:02}'
 
 
 def ass_escape(text):
@@ -303,8 +305,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 '''
     events = []
     if captions:
-        for index in range(0,len(words),5):
-            group = words[index:index+5]
+        for group in subtitle_groups(words, offset, duration):
             begin,finish = max(0,group[0]['start']-offset), min(duration,group[-1]['end']-offset+.12)
             if finish <= begin: continue
             if template=='highlight':

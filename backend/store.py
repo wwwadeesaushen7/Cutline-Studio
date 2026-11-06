@@ -3,16 +3,24 @@ import json
 import os
 import sqlite3
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 
 DATA = Path(os.environ.get('CUTLINE_DATA_DIR', Path(__file__).resolve().parents[1] / '.data')).resolve()
 DATA.mkdir(parents=True, exist_ok=True)
 LOCK = threading.RLock()
 
+@contextmanager
 def connection():
     con = sqlite3.connect(DATA / 'workspace.sqlite3')
-    con.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
-    return con
+    try:
+        with con:
+            con.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+            yield con
+    finally:
+        # sqlite3's own context manager commits but does not close the handle.
+        # Explicit closure matters for repeated polling and Windows file locks.
+        con.close()
 
 def save(job):
     with LOCK, connection() as con:

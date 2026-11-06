@@ -1,0 +1,27 @@
+.trim-controls h3 { display:flex; gap:8px; align-items:center; font-size:14px; }
+.trim-controls p, .caption-editor p { font-size:11px; line-height:1.7; color:#78678c; margin:12px 0; }
+.trim-controls label { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; margin-top:16px; }
+.trim-controls input[type=number] { width:100px; }
+.trim-controls input[type=range] { width:100%; margin:12px 0; accent-color:#8055e7; }
+.trim-controls .trim-error { color:#bb385d; }
+.trim-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:20px; }
+.caption-editor { margin-top:20px; border-top:1px solid #eee5f6; padding-top:16px; }
+.caption-editor summary { cursor:pointer; font-size:12px; font-weight:600; }
+.caption-editor summary span { font-size:10px; color:#8055e7; margin-left:8px; }
+.caption-search { display:flex; align-items:center; gap:8px; margin:10px 0; }
+.caption-search input { width:100%; min-width:0; }
+.caption-word-list { max-height:230px; overflow:auto; }
+.caption-word-row { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.caption-word-row button { color:#8055e7; background:#f4effc; border:0; border-radius:6px; padding:8px; width:60px; flex-shrink:0; font-size:10px; }
+.caption-word-row input { width:100%; min-width:0; }
+.caption-word-row input, .caption-search input, .trim-controls input[type=number] { border:1px solid #e7dff0; border-radius:6px; padding:8px; font:inherit; font-size:12px; background:#fff; color:#30203c; }
+.caption-editor>.text-button { margin-top:12px; }
+.editor-panel fieldset { border:0; padding:0; margin:0; min-width:0; }
+.editor-panel fieldset:disabled { opacity:.65; }
+.editor-tabs button { min-width:0; }
+.preview-selector { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.preview-selector button { border:1px solid #e7dff0; border-radius:8px; padding:8px 12px; color:#78678c; background:#fff; font-size:11px; }
+.preview-selector button.selected { color:#6d42cb; background:#f0e9fc; border-color:#ac88ef; }
+.preview-selector button:disabled { opacity:.5; }
+.subtitle-download { display:flex; justify-content:center; gap:6px; font-size:12px; color:#8055e7; margin:12px 0; }
+.retry-project { margin-top:12px; }

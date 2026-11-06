@@ -100,8 +100,9 @@ UPDATING AN EXISTING COPY
    Run "1 - Setup.bat" again to build the updated website interface.
    Existing tools are reused. Wait for "SETUP COMPLETE".
    Use "2 - Open Cutline.bat" again afterward.
-   Previously failed projects stay failed; upload the video or paste the
-   YouTube link again to create a new project with the corrected code.
+   Failed projects now offer "Retry processing" when their video is saved.
+   Click it to continue without another upload. Completed clips are kept.
+   If the source file is gone, upload the video again.
 
 WHERE YOUR VIDEOS GO
    Projects and clips are stored in the hidden .data folder alongside this
@@ -118,3 +119,17 @@ TESTING NOTE
    Windows package availability and launcher logic were checked, but this
    environment cannot execute Windows .bat files. Report any Windows error
    so it can be corrected.
+
+FINE-TUNE A CLIP AND FIX CAPTIONS
+   1. In My projects, click "Make it yours" on your clip.
+   2. Open Trim. Set the start/end in seconds, or move the video playhead
+      and click "Set start here" / "Set end here". Keep at least 0.25 sec.
+      "Restore full clip" brings the whole original clip back.
+   3. Open Captions, then "Edit caption words". Correct any wrong words.
+      Clear a word to hide it. You can search for a word in a long clip.
+   4. Keep your text, music, framing, and download quality as you want.
+      Click "Export clip" and wait for "Your MP4 is ready".
+   5. Click "Exported video" to watch the actual finished result.
+      Download the MP4, or "Download captions (.srt)" for subtitles.
+   Your original clip is kept. Saved edits return when you reopen it.
+   Changing download quality keeps those saved edits.

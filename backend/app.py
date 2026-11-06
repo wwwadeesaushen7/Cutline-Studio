@@ -8,13 +8,14 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, StringConstraints, ValidationError
 
 # Apply the small-memory demo profile before loading the media/speech libraries.
 FREE_DEMO = os.environ.get('CUTLINE_FREE_DEMO') == '1'
@@ -22,7 +23,7 @@ if FREE_DEMO:
     os.environ.update(CUTLINE_SPEECH_ENGINE='offline', CUTLINE_TEMPORARY_STORAGE='1',
                       OMP_NUM_THREADS='1', OPENCV_FOR_THREADS_NUM='1')
 
-from . import media, speech, store
+from . import editing, media, speech, store
 from .access import PrivateSiteAuth
 
 LOG = logging.getLogger(__name__)
@@ -48,8 +49,8 @@ class Settings(BaseModel):
     language: str = 'auto'
     text: str = Field(default='',max_length=160)
     text_position: str = 'top'
-    music_volume: float = Field(default=.15,ge=0,le=1)
-    voice_volume: float = Field(default=1,ge=0,le=1)
+    music_volume: float = Field(default=.15,ge=0,le=1,allow_inf_nan=False)
+    voice_volume: float = Field(default=1,ge=0,le=1,allow_inf_nan=False)
     remove_music: bool = False
 
     def checked(self):
@@ -68,8 +69,14 @@ class Settings(BaseModel):
         return self.model_dump()
 
 
-def settings_from(raw):
-    try: return Settings.model_validate_json(raw).checked()
+class ExportSettings(Settings):
+    trim_start: float = Field(default=0, ge=0, le=7200, allow_inf_nan=False)
+    trim_end: float | None = Field(default=None, gt=0, le=7200, allow_inf_nan=False)
+    caption_edits: dict[str, Annotated[str, StringConstraints(max_length=120)]] = Field(default_factory=dict, max_length=20000)
+
+
+def settings_from(raw, model=Settings):
+    try: return model.model_validate_json(raw).checked()
     except ValidationError: raise HTTPException(422,'Check your clip settings and try again.')
     except ValueError as exc: raise HTTPException(422,str(exc))
 
@@ -114,14 +121,16 @@ def require_job(job_id):
 
 
 def public_job(job):
-    return {k:v for k,v in job.items() if k not in {'source','youtube'}}
+    result = {k:v for k,v in job.items() if k not in {'source','youtube'}}
+    result['can_retry'] = job['status']=='error' and bool(job.get('youtube') or (job.get('source') and Path(job['source']).is_file()))
+    return result
 
 
 @asynccontextmanager
 async def lifespan(app):
     for job in store.all_jobs():
         if job['status'] in ACTIVE:
-            store.update(job['id'],status='error',error='Processing was interrupted when the server stopped. Please create a new project.')
+            store.update(job['id'],status='error',error='Processing was interrupted when the server stopped. Retry this project to continue with the saved video.')
         for clip in job.get('clips',[]):
             if clip.get('export_status')=='processing': store.update_clip(job['id'],clip['id'],export_status='error',export_error='Export was interrupted. Please export again.')
     yield
@@ -196,7 +205,7 @@ def process(job_id):
         source=Path(job['source']) if job['source'] else None
         config=job['settings']
         manual=config.get('mode')=='range'
-        if job['youtube']:
+        if job['youtube'] and (source is None or not source.is_file()):
             store.update(job_id,status='downloading',progress=5,message='Importing your YouTube video')
             import sys
             minimum=0 if manual else 180
@@ -206,6 +215,8 @@ def process(job_id):
             metadata=next(folder.glob('*.info.json'),None)
             title=json.loads(metadata.read_text(encoding='utf-8')).get('title','YouTube video') if metadata else 'YouTube video'
             store.update(job_id,source=str(source),title=title)
+        if source is None or not source.is_file():
+            raise ValueError('The source video is no longer on this server. Upload it again to create a new project.')
         store.update(job_id,status='analyzing',progress=12,message='Checking your video and audio')
         info=media.validate_source(source,automatic=not manual)
         validate_range(config,info)
@@ -233,6 +244,10 @@ def process(job_id):
             store.update(job_id,language=transcript['language'],speech_engine=transcript.get('engine','whisper'),message=f'Found {len(candidates)} complete moments',progress=50)
         for index,candidate in enumerate(candidates):
             candidate['end']=min(candidate['end'],info['duration'])
+            # A retry resumes unfinished moments and keeps clips already made.
+            if any(abs(c['start']-candidate['start'])<.001 and abs(c['end']-candidate['end'])<.001
+                   for c in store.get(job_id)['clips']):
+                continue
             clip_id=uuid.uuid4().hex[:12]
             prefix=f'clip-{clip_id}'
             store.update(job_id,status='tracking',progress=50+int(index/len(candidates)*45),message=f'Preparing the framing for clip {index+1} of {len(candidates)}')
@@ -248,53 +263,91 @@ def process(job_id):
             clean=folder/f'{prefix}-clean.mp4'
             media.render(source,clean,candidate,frame_settings,points,clean=True)
             output=folder/f'{prefix}.mp4'
-            if config['captions']: media.render(source,output,candidate,frame_settings,points)
+            if config['captions'] or config.get('text'):
+                media.render(source,output,candidate,frame_settings,points)
             else: shutil.copyfile(clean,output)
             thumb=folder/f'{prefix}.jpg'
             media.thumbnail(clean,thumb,timestamp=min(1,(candidate['end']-candidate['start'])/2))
             clip={'id':clip_id,'kind':'range' if manual else 'auto','title':candidate['title'],'start':candidate['start'],'end':candidate['end'],'duration':round(candidate['end']-candidate['start'],3),'transcript':candidate['text'],'words':[dict(w,start=round(w['start']-candidate['start'],3),end=round(w['end']-candidate['start'],3)) for w in candidate['words']],'url':f'/media/{job_id}/{output.name}','clean_url':f'/media/{job_id}/{clean.name}','thumbnail':f'/media/{job_id}/{thumb.name}','tracked':bool(points),'export_status':'idle','settings':config}
             clip['resolved_framing']=frame_settings.get('framing','speaker')
+            if candidate['words']:
+                editing.write_srt(output.with_suffix('.srt'),candidate)
+                clip['captions_url']=f'/media/{job_id}/{output.stem}.srt'
             current=store.get(job_id)
             store.update(job_id,clips=current['clips']+[clip])
         store.update(job_id,status='completed',progress=100,message='Your clips are ready')
     except Exception as exc:
         LOG.exception('Processing failed for %s',job_id)
         detail=str(exc)
-        if 'huggingface' in detail.lower() or 'connection' in detail.lower(): detail='The speech model could not be loaded. Check server network access to Hugging Face, then try again.'
+        if 'huggingface' in detail.lower(): detail='The speech model could not be loaded. Check server network access to Hugging Face, then try again.'
         if job and job.get('youtube') and 'Tunnel connection failed' in detail: detail='This workspace cannot reach YouTube. Enable the YouTube domains in environment network settings, or upload the video file instead.'
         elif job and job.get('youtube') and ('Sign in' in detail or '403' in detail or 'not a bot' in detail): detail='YouTube blocked this download or requires sign-in. Please upload the video file instead.'
         store.update(job_id,status='error',error=detail[-700:],message='This video needs another try')
 
 
+@app.post('/api/jobs/{job_id}/retry',status_code=202)
+def retry_job(job_id:str):
+    with store.LOCK:
+        job=require_job(job_id)
+        if job['status']!='error' or any(c.get('export_status')=='processing' for c in job['clips']):
+            raise HTTPException(409,'Only a failed project with no active exports can be retried.')
+        if not public_job(job)['can_retry']:
+            raise HTTPException(409,'The source video is no longer on this server. Upload it again.')
+        store.update(job_id,status='queued',progress=0,error=None,caption_notice=None,message='Queued to resume with your saved video')
+        try:
+            POOL.submit(process,job_id)
+        except Exception:
+            store.update(job_id,status='error',error='The worker is unavailable. Restart the server and retry.')
+            raise HTTPException(503,'The worker is unavailable. Restart the server and retry.')
+        return public_job(store.get(job_id))
+
+
 @app.post('/api/jobs/{job_id}/clips/{clip_id}/export',status_code=202)
 async def export(job_id:str,clip_id:str,settings:str=Form('{}'),music:UploadFile|None=File(None)):
-    job=require_job(job_id)
-    clip=next((c for c in job['clips'] if c['id']==clip_id),None)
-    if not clip: raise HTTPException(404,'Clip not found.')
-    if clip.get('export_status')=='processing': raise HTTPException(409,'This clip is already exporting.')
-    config=settings_from(settings)
+    config=settings_from(settings,ExportSettings)
+    with store.LOCK:
+        job=require_job(job_id)
+        clip=next((c for c in job['clips'] if c['id']==clip_id),None)
+        if not clip: raise HTTPException(404,'Clip not found.')
+        if job['status'] in ACTIVE: raise HTTPException(409,'Wait for this project to finish processing before exporting.')
+        if clip.get('export_status')=='processing': raise HTTPException(409,'This clip is already exporting.')
+        try:
+            # Public word timestamps are relative to the original clip.
+            editing.apply_edits({'start':0,'end':clip['end']-clip['start'],'words':clip['words']},config)
+        except ValueError as exc:
+            raise HTTPException(422,str(exc))
+        previous={key:clip.get(key) for key in ('export_status','export_error')}
+        # Claim before the first await; uploading music must also block a
+        # second export or deletion of the project.
+        store.update_clip(job_id,clip_id,export_status='processing',export_error=None)
     music_path=None
     music_name=None
-    if music:
-        music_name=Path(music.filename or 'Your soundtrack').name
-        suffix=Path(music_name).suffix.lower()
-        if suffix not in {'.mp3','.wav','.m4a','.aac','.ogg','.flac','.webm'}: suffix='.audio'
-        music_path=directory(job_id)/f'music-{uuid.uuid4().hex}{suffix}'
-        await save_upload(music,music_path,50*1024**2)
-        try:
-            if not media.probe(music_path)['audio']: raise ValueError('Choose a music file with an audio track.')
-        except ValueError as exc:
+    try:
+        if music:
+            music_name=Path(music.filename or 'Your soundtrack').name
+            suffix=Path(music_name).suffix.lower()
+            if suffix not in {'.mp3','.wav','.m4a','.aac','.ogg','.flac','.webm'}: suffix='.audio'
+            music_path=directory(job_id)/f'music-{uuid.uuid4().hex}{suffix}'
+            await save_upload(music,music_path,50*1024**2)
+            try:
+                if not (await run_in_threadpool(media.probe,music_path))['audio']:
+                    raise ValueError('Choose a music file with an audio track.')
+            except ValueError:
+                raise HTTPException(422,'This music file could not be read. Choose a valid MP3, WAV, or other audio file.')
+        elif clip.get('music_file') and not config['remove_music']:
+            music_path=directory(job_id)/clip['music_file']
+            music_name=clip.get('music_name','Your soundtrack')
+        POOL.submit(render_export,job_id,clip_id,config,music_path,music_name)
+    except BaseException:
+        if music and music_path:
             music_path.unlink(missing_ok=True)
-            raise HTTPException(422,str(exc))
-    elif clip.get('music_file') and not config['remove_music']:
-        music_path=directory(job_id)/clip['music_file']
-        music_name=clip.get('music_name','Your soundtrack')
-    store.update_clip(job_id,clip_id,export_status='processing',export_error=None)
-    POOL.submit(render_export,job_id,clip_id,config,music_path,music_name)
+        store.update_clip(job_id,clip_id,**previous)
+        raise
     return {'status':'processing'}
 
 
 def render_export(job_id,clip_id,config,music,music_name=None):
+    output=None
     try:
         job=store.get(job_id)
         folder=directory(job_id)
@@ -307,26 +360,37 @@ def render_export(job_id,clip_id,config,music,music_name=None):
             metadata['tracking']=points
             metadata['tracking_version']=media.TRACKING_VERSION
         (folder/f'clip-{clip_id}.json').write_text(json.dumps(metadata),encoding='utf-8')
+        edited=editing.apply_edits(metadata['clip'],config)
+        offset=edited['start']-metadata['clip']['start']
+        points=editing.trim_tracking(points,offset,edited['end']-metadata['clip']['start'])
         output=folder/f'export-{clip_id}-{config["quality"]}-{uuid.uuid4().hex[:8]}.mp4'
-        media.render(source,output,metadata['clip'],frame_settings,points,music=music)
-        store.update_clip(job_id,clip_id,export_status='completed',export_url=f'/media/{job_id}/{output.name}',export_settings=config,export_framing=frame_settings.get('framing','speaker'),export_error=None,music_file=music.name if music else None,music_name=music_name,music_url=f'/media/{job_id}/{music.name}' if music else None)
+        media.render(source,output,edited,frame_settings,points,music=music)
+        captions_url=None
+        if edited['words']:
+            editing.write_srt(output.with_suffix('.srt'),edited)
+            captions_url=f'/media/{job_id}/{output.stem}.srt'
+        store.update_clip(job_id,clip_id,export_status='completed',export_url=f'/media/{job_id}/{output.name}',export_settings=config,export_framing=frame_settings.get('framing','speaker'),export_duration=round(edited['end']-edited['start'],3),export_captions_url=captions_url,export_error=None,music_file=music.name if music else None,music_name=music_name,music_url=f'/media/{job_id}/{music.name}' if music else None)
     except Exception as exc:
         LOG.exception('Export failed')
+        if output:
+            for path in (output,output.with_suffix('.ass'),output.with_suffix('.tracking.txt'),output.with_suffix('.srt')):
+                path.unlink(missing_ok=True)
         store.update_clip(job_id,clip_id,export_status='error',export_error=str(exc)[-600:])
 
 
 @app.delete('/api/jobs/{job_id}',status_code=204)
 def delete_job(job_id:str):
-    job=require_job(job_id)
-    if job['status'] in ACTIVE or any(c.get('export_status')=='processing' for c in job.get('clips',[])): raise HTTPException(409,'Wait for processing to finish before deleting this project.')
-    shutil.rmtree(directory(job_id),ignore_errors=True)
-    store.delete(job_id)
+    with store.LOCK:
+        job=require_job(job_id)
+        if job['status'] in ACTIVE or any(c.get('export_status')=='processing' for c in job.get('clips',[])): raise HTTPException(409,'Wait for processing to finish before deleting this project.')
+        shutil.rmtree(directory(job_id),ignore_errors=True)
+        store.delete(job_id)
 
 
 @app.get('/media/{job_id}/{filename}')
 def media_file(job_id:str,filename:str,download:bool=False):
     require_job(job_id)
-    if not re.fullmatch(r'[a-zA-Z0-9_.-]+',filename) or Path(filename).suffix not in {'.mp4','.jpg','.mp3','.wav','.m4a','.aac','.ogg','.flac','.webm','.audio'}: raise HTTPException(404,'Media not found.')
+    if not re.fullmatch(r'[a-zA-Z0-9_.-]+',filename) or Path(filename).suffix not in {'.mp4','.jpg','.mp3','.wav','.m4a','.aac','.ogg','.flac','.webm','.audio','.srt'}: raise HTTPException(404,'Media not found.')
     path=directory(job_id)/filename
     if not path.is_file(): raise HTTPException(404,'Media not found.')
     return FileResponse(path,filename=filename if download else None,content_disposition_type='attachment' if download else 'inline')
