@@ -15,7 +15,7 @@ The Dockerfile builds the website and installs Python, FFmpeg, Node, fonts, and 
 These are hosting settings in Render. You do not need to download the project again, rerun Windows setup, or change Codex's **Edit environment** screen for these steps.
 
 1. Open [Render](https://render.com/) and create an account. Connect your GitHub account when asked.
-2. Create a **Web Service** from the GitHub repository `wwwadeesaushen7/Python`. Choose the branch **`codex/cutline-studio`**. The `main` branch does not contain the app. If the repository is missing, allow Render access to this repository in its GitHub connection settings.
+2. Create a **Web Service** from the GitHub repository `wwwadeesaushen7/Cutline-Studio`. Choose the branch **`main`**. If the repository is missing, allow Render access to this repository in its GitHub connection settings.
 3. Choose **Docker** as the runtime and leave the root directory empty. The Dockerfile is at the repository root. Choose a service name and a region near you. The built-in service address is enough for testing; you do not need to buy a domain yet.
 4. Choose a **paid** instance. For longer videos, start with at least **4 GB RAM**; two CPU cores are preferable. This is a starting capacity recommendation, not a processing-time guarantee. Review the monthly estimate shown by the host before creating the service. Free services are unsuitable for this workload and persistent disk setup.
 5. Add a **persistent disk**, initially around **20 GB** for a small trial. Set its mount path to **`/var/data`**. All uploads, clips, the database, and speech-model caches will be inside `/var/data/cutline`. Delete finished projects to free space. Do not rely on the container's temporary filesystem for videos.
@@ -49,7 +49,7 @@ YouTube may reject downloads from hosting providers' IP addresses even when the 
 - Changing the site password revokes the old password. A browser may retain Basic-auth credentials; use a private browser window when testing a different login.
 - Take backups of the persistent data while processing is idle. This deployment does not add automatic backups or automatic file retention. Deleting the persistent disk loses the stored projects.
 - Keep the server to one instance while it uses SQLite and an in-process queue. Multiple independent users and higher capacity require changes to the application, not only a bigger hosting plan.
-- For a private site, deploy manually from `codex/cutline-studio` after updates have been pushed, waiting for current processing to finish first.
+- For a private site, deploy manually from `main` after updates have been pushed, waiting for current processing to finish first.
 
 ## Running the same image on another host
 

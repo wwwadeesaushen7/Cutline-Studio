@@ -1,0 +1,29 @@
+CUTLINE STUDIO - START HERE
+==========================
+
+This is the COMPLETE website with the latest improvements.
+You do not need any older download.
+
+1. Right-click Cutline-Studio-Windows.zip and choose Extract All.
+2. Open the extracted "Cutline Studio" folder.
+3. Double-click "1 - Setup.bat" (Windows may show just "1 - Setup").
+   Internet is needed for the initial tool/package downloads.
+   Wait until the window says SETUP COMPLETE.
+4. Double-click "2 - Open Cutline.bat" (or "2 - Open Cutline").
+5. The website opens in your browser. Keep that command window open.
+
+The two .bat files must stay with backend, frontend, and scripts.
+Do not run them inside the ZIP or copy just the .bat files elsewhere.
+
+ALREADY HAVE CUTLINE AND WANT TO KEEP YOUR PROJECTS?
+Close the Cutline command window. Copy all contents from this extracted
+folder into your existing Cutline folder and choose Replace when asked.
+Keep your existing .data, .tools, and .venv folders.
+Run 1 - Setup again, then 2 - Open Cutline.
+
+The latest changes include clip trimming, editable caption words,
+subtitle downloads, finished-export preview, retrying failed projects,
+and 480p / 720p / 1080p downloads.
+
+For more help, open WINDOWS-GUIDE.txt.
+Project: https://github.com/wwwadeesaushen7/Cutline-Studio

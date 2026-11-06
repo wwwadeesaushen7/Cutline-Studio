@@ -1,5 +1,11 @@
 # Cutline Studio
 
+[Download the complete Windows package](https://github.com/wwwadeesaushen7/Cutline-Studio/raw/refs/heads/main/downloads/Cutline-Studio-Windows.zip)
+
+This ZIP includes the whole website, the latest improvements, the built interface, **1 - Setup.bat**, **2 - Open Cutline.bat**, and a Windows guide. No earlier download is needed. Extract All, open the **Cutline Studio** folder, run **1 - Setup**, wait for **SETUP COMPLETE**, then run **2 - Open Cutline**. Setup needs internet to install missing tools and packages. See [START-HERE.txt](START-HERE.txt).
+
+If you already have projects, close Cutline and copy the extracted contents into your existing folder, replacing matching files. Keep your `.data`, `.tools`, and `.venv` folders. Run setup again, then open the website.
+
 A complete React + FastAPI video-clipping workspace. Upload a long video or import a public YouTube link, turn spoken passages into clips, then add captions, text, and your own music.
 
 The saved [editing preferences](docs/EDITING-PREFERENCES.md) specify direct cuts between speakers and top/bottom output for two source screens.
@@ -25,7 +31,7 @@ For automated checks: `./scripts/check.sh`. After building, `cd frontend && npm 
 
 ## Publish online
 
-For the credit-limited cloud demo selected for this project, follow the [Railway Trial/Free browser guide](docs/FREE-CLOUD-DEMO.md). Railway's official documentation currently lists a one-time $5 trial grant for up to 30 days, followed by a $0 Free plan with $1 of resource credit each month. Availability is limited by credits and resources; this is not an unlimited hosting allowance. Set the site username/password and `CUTLINE_FREE_DEMO=1`, and deploy from `codex/cutline-studio`. No files need uploading manually. `railway.json` selects the Dockerfile and health check.
+For the credit-limited cloud demo selected for this project, follow the [Railway Trial/Free browser guide](docs/FREE-CLOUD-DEMO.md). Railway's official documentation currently lists a one-time $5 trial grant for up to 30 days, followed by a $0 Free plan with $1 of resource credit each month. Availability is limited by credits and resources; this is not an unlimited hosting allowance. Set the site username/password and `CUTLINE_FREE_DEMO=1`, and deploy from `main`. No files need uploading manually. `railway.json` selects the Dockerfile and health check.
 
 This profile uses lighter English-only speech recognition and defaults to one clip. Native English recognition runs in a child process so it cannot hold the web server's Python interpreter during a long utterance. Your computer can be off; projects and videos use temporary storage and can disappear after a restart/rebuild. The interface explains these limits. This is an experimental demo for small videos, with no processing-time guarantee.
 
@@ -84,7 +90,7 @@ With the development servers running, run `cd frontend && npm run test:ui` for b
 
 ## Windows download
 
-Download the `codex/cutline-studio` branch with GitHub's **Code → Download ZIP**, extract into a new folder, run `1 - Setup.bat` once, then use `2 - Open Cutline.bat` to open the app. Setup version 2 works without WinGet, Microsoft Store, or App Installer. It reuses supported Python 3.12/3.13, or installs a signed 64-bit Python 3.13 installer from python.org after verifying its pinned SHA-256 hash and publisher signature.
+Download the `main` branch with GitHub's **Code → Download ZIP**, extract into a new folder, run `1 - Setup.bat` once, then use `2 - Open Cutline.bat` to open the app. Setup version 2 works without WinGet, Microsoft Store, or App Installer. It reuses supported Python 3.12/3.13, or installs a signed 64-bit Python 3.13 installer from python.org after verifying its pinned SHA-256 hash and publisher signature.
 
 Missing Node.js and FFmpeg are downloaded as portable ZIPs into the local `.tools` directory. Their SHA-256 hashes are pinned from Node.js's release checksums and Microsoft's official WinGet package manifests. The Microsoft C++ runtime is installed when missing, with its Authenticode signature and Microsoft publisher verified. TLS, signatures, and checksums remain enabled. Portable binaries are added to the app process's PATH; no permanent PATH changes are required. The app environment and built website are then prepared automatically.
 

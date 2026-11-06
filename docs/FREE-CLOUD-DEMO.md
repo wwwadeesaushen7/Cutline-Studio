@@ -18,8 +18,8 @@ The demo uses lighter **English-only** offline recognition, with lower accuracy 
 1. Open [Railway](https://railway.com/) and sign in using GitHub.
 2. Check that your account shows **Trial credit** or the **Free** allowance described above. No paid subscription is needed for this guide.
 3. Create a **New Project** and choose **Deploy from GitHub repo**, or add a GitHub Repository service to an empty project.
-4. If GitHub asks, allow Railway to access **`wwwadeesaushen7/Python`**. Select **Python**; access to other repositories is unnecessary.
-5. Select the repository, then open service **Settings → Source** and set its branch to **`codex/cutline-studio`**. If a branch selector appears during creation, choose it there. The `main` branch does not contain the app. An automatic attempt to build `main` can fail; choosing the correct branch and redeploying fixes this source selection.
+4. If GitHub asks, allow Railway to access **`wwwadeesaushen7/Cutline-Studio`**. Select **Cutline-Studio**; access to other repositories is unnecessary.
+5. Select the repository, then open service **Settings → Source** and set its branch to **`main`**. If a branch selector appears during creation, choose it there.
 6. Leave the root directory empty and use the root **Dockerfile**. Railway detects it automatically. The included `railway.json` configures Docker and `/api/health`; no custom build/start command is needed. Keep one service instance with no persistent volume for this temporary demo.
 
 ## 2. Add three service variables
@@ -66,6 +66,6 @@ The source and container are tested here. Actual account eligibility, remaining 
 
 ## Updating and reproducing the resource test
 
-Wait for processing to finish, then manually deploy the latest `codex/cutline-studio` branch. Disable automatic GitHub deployments if available to avoid interrupting active jobs on each code push. Temporary projects can be lost on an update. Leave `CUTLINE_FREE_DEMO=1` enabled.
+Wait for processing to finish, then manually deploy the latest `main` branch. Disable automatic GitHub deployments if available to avoid interrupting active jobs on each code push. Temporary projects can be lost on an update. Leave `CUTLINE_FREE_DEMO=1` enabled.
 
 Developers can build `docker build -t cutline-studio:free-test .` and run `.venv/bin/python scripts/check_free_demo.py` on Linux with Docker/cgroup v2 and FFmpeg's flite filter. The manual check creates and removes only synthetic data and its own container. It tests English recognition, captions, clipping, editing, and protected downloads under 512 MiB/no-swap/0.1-CPU limits, records memory and response times, and is separate from the fast unit suite. The [paid-hosting guide](PUBLISHING.md) remains available for larger servers with durable storage.

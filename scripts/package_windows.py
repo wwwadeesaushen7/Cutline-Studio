@@ -14,7 +14,7 @@ def main():
     if not (ROOT/'frontend/dist/index.html').is_file():
         parser.error('Build the frontend with npm run build before packaging.')
     paths=[]
-    for name in ['README.md','WINDOWS-GUIDE.txt','1 - Setup.bat','2 - Open Cutline.bat','requirements.txt','requirements-dev.txt','requirements.lock.txt','.gitignore','.gitattributes','Dockerfile','.dockerignore','railway.json','frontend/package.json','frontend/package-lock.json','frontend/index.html','frontend/vite.config.js']:
+    for name in ['README.md','START-HERE.txt','WINDOWS-GUIDE.txt','1 - Setup.bat','2 - Open Cutline.bat','requirements.txt','requirements-dev.txt','requirements.lock.txt','.gitignore','.gitattributes','Dockerfile','.dockerignore','railway.json','frontend/package.json','frontend/package-lock.json','frontend/index.html','frontend/vite.config.js']:
         paths.append(ROOT/name)
     for directory in ['backend','scripts','tests']:
         paths.extend((ROOT/directory).glob('*.py'))
